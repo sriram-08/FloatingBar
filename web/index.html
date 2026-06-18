@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuildHub Floating Bar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0d1117',
+                        accentNeon: '#10b981',
+                        panelBg: '#161b22'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* ==========================================================================
+           1. ROOT TRANSPARENCY & OS FRAMING RESET
+           ========================================================================== */
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+            outline: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0;
+            padding: 4px;
+            /* Space for native drag shadow padding if applicable */
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Prevent rendering engines from wrapping active/focused elements with a box */
+        * {
+            box-sizing: border-box;
+            outline: none !important;
+        }
+
+        input,
+        textarea,
+        select {
+            color-scheme: dark;
+        }
+
+        /* ==========================================================================
+           2. VIEWPORT FADE IN / FADE OUT STATES
+           ========================================================================== */
+        .fade-view {
+            transition: opacity 0.25s ease-in-out, transform 0.2s ease-in-out;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .fade-view.hidden-state {
+            opacity: 0;
+            transform: scale(0.98);
+            pointer-events: none;
+            position: absolute;
+            visibility: hidden;
+        }
+
+        /* Backdrop Blur Utility */
+        .glass {
+            backdrop-filter: blur(16px);
+            background-color: rgba(13, 17, 23, 0.94);
+        }
+
+        /* ==========================================================================
+           3. COLLAPSED COMPACT FLOATING BAR
+           ========================================================================== */
+        #collapsed-bar {
+            width: 100%;
+            max-width: 580px;
+            min-width: 280px;
+            height: 56px;
+            cursor: pointer;
+        }
+
+        #collapsed-bar:hover {
+            border-color: #374151 !important;
+        }
+
+        .pulse-ring {
+            animation: pulseRing 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulseRing {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+            }
+
+            50% {
+                box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
+            }
+        }
+
+        /* ==========================================================================
+           4. EXPANDED DASHBOARD PANEL & LAYOUT
+           ========================================================================== */
+        #expanded-dashboard {
+            width: 100%;
+            max-width: 960px;
+            min-width: 320px;
+            height: auto;
+            min-height: 480px;
+            max-height: 95vh;
+        }
+
+        .dashboard-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Column Proportions */
+        .col-nav {
+            width: 22%;
+            min-width: 140px;
+        }
+
+        .col-feed {
+            width: 52%;
+        }
+
+        .col-form {
+            width: 26%;
+            min-width: 180px;
+        }
+
+        .col-feed,
+        .col-form {
+            overflow-y: auto;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 700px) {
+            .col-nav {
+                display: none;
+            }
+
+            .col-feed {
+                width: 55%;
+            }
+
+            .col-form {
+                width: 45%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .col-feed {
+                width: 100%;
+            }
+
+            .col-form {
+                display: none;
+            }
+
+            #mobile-add-btn {
+                display: flex !important;
+            }
+        }
+
+        /* Mobile Form Overlays */
+        #mobile-add-panel {
+            position: absolute;
+            inset: 0;
+            background: rgba(13, 17, 23, 0.98);
+            z-index: 100;
+            overflow-y: auto;
+            border-radius: 1rem;
+        }
+
+        /* ==========================================================================
+           5. FLOATING REMINDER TOASTS
+           ========================================================================== */
+        #reminder-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            min-width: 280px;
+            max-width: 420px;
+            pointer-events: all;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        .toast-hide {
+            animation: slideDown 0.2s ease forwards !important;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(12px);
+            }
+        }
+
+        /* Toast Progress Countdown Bar */
+        .toast-progress {
+            height: 3px;
+            background: #10b981;
+            border-radius: 0 0 8px 8px;
+            animation: shrink 300s linear forwards;
+        }
+
+        @keyframes shrink {
+            from {
+                width: 100%;
+            }
+
+            to {
+                width: 0%;
+            }
+        }
+    </style>
+</head>
+
+<body class="select-none bg-transparent">
+
+    <div id="collapsed-bar"
+        class="fade-view glass border border-zinc-800 rounded-full px-5 py-3 flex items-center justify-between shadow-2xl"
+        onclick="expandDashboard()">
+
+        <div id="categories-pill-wrapper" class="flex items-center space-x-3 overflow-hidden">
+            <div
+                class="flex items-center space-x-1.5 bg-zinc-800/50 px-2.5 py-0.5 rounded-full border border-zinc-700/40">
+                <span class="text-zinc-400 text-[11px] font-medium tracking-wide">👤 Personal</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-ring"></span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+            <div id="bar-alert"
+                class="hidden items-center space-x-1.5 bg-emerald-950/80 border border-emerald-800 px-2.5 py-1 rounded-full">
+                <span class="text-[10px] text-emerald-400 font-medium whitespace-nowrap" id="bar-alert-text">⏰ Due
+                    soon</span>
+            </div>
+
+            <span id="reminder-count-badge"
+                class="hidden text-[10px] bg-emerald-900 text-emerald-400 font-mono px-2 py-0.5 rounded-full border border-emerald-800"></span>
+            <button onclick="event.stopPropagation(); expandDashboard()"
+                class="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center transition-colors shadow-lg flex-shrink-0">
+                <span class="text-black font-bold text-lg leading-none">+</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="expanded-dashboard"
+        class="fade-view hidden-state glass border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+
+        <div class="px-4 sm:px-6 py-3 border-b border-zinc-800 flex items-center justify-between flex-shrink-0 gap-2">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <span
+                    class="text-zinc-500 font-bold tracking-widest text-[10px] uppercase whitespace-nowrap hidden sm:block">BUILDHUB</span>
+                <span
+                    class="px-2 py-0.5 bg-emerald-950 text-emerald-400 text-[10px] rounded border border-emerald-800 font-mono flex-shrink-0">LIVE</span>
+                <span id="header-clock" class="text-zinc-600 text-[10px] font-mono flex-shrink-0"></span>
+            </div>
+
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button id="mobile-add-btn" onclick="toggleMobileAdd()" style="display:none"
+                    class="text-xs bg-emerald-900 border border-emerald-700 text-emerald-400 px-3 py-1.5 rounded-md hover:bg-emerald-800 transition">
+                    + Add
+                </button>
+
+                <div class="relative">
+                    <button onclick="toggleSettingsDropdown()"
+                        class="text-xs bg-zinc-800 text-zinc-300 px-2.5 py-1.5 rounded-md hover:bg-zinc-700 transition flex items-center gap-1">
+                        <span>⚙️</span><span class="hidden sm:inline">Dock</span>
+                    </button>
+                    <div id="settings-menu"
+                        class="hidden absolute right-0 mt-2 w-44 bg-zinc-900 border border-zinc-800 rounded-lg p-3 shadow-xl z-50">
+                        <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Screen Position</p>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button onclick="moveDock('top')"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-1 rounded">Top</button>
+                            <button onclick="moveDock('bottom')"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-1 rounded">Bottom</button>
+                            <button onclick="moveDock('left')"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-1 rounded">Left</button>
+                            <button onclick="moveDock('right')"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-1 rounded">Right</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="collapseDashboard()"
+                    class="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center text-sm">
+                    &times;
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-body relative" style="min-height:400px; max-height: calc(95vh - 60px);">
+            <div id="mobile-add-panel" class="hidden p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-zinc-200 font-semibold text-sm">Add Reminder</h3>
+                    <button onclick="toggleMobileAdd()" class="text-zinc-500 hover:text-white text-lg">&times;</button>
+                </div>
+                <div class="space-y-4" id="mobile-form-container"></div>
+            </div>
+
+            <div class="col-nav border-r border-zinc-800 bg-black/20 p-4 space-y-1 flex-shrink-0">
+                <p class="text-[10px] font-bold text-zinc-600 uppercase tracking-widest pl-2 mb-2">Streams</p>
+                <button
+                    class="w-full text-left px-3 py-2 text-xs rounded-lg bg-zinc-800/60 text-emerald-400 font-medium flex items-center space-x-2">
+                    <span>👤</span><span>Personal</span>
+                </button>
+                <button
+                    class="w-full text-left px-3 py-2 text-xs rounded-lg text-zinc-400 hover:bg-zinc-800/30 flex items-center space-x-2">
+                    <span>🌐</span><span>BuildHubCode</span>
+                </button>
+                <button
+                    class="w-full text-left px-3 py-2 text-xs rounded-lg text-zinc-400 hover:bg-zinc-800/30 flex items-center space-x-2">
+                    <span>💻</span><span>Client Web</span>
+                </button>
+            </div>
+
+            <div class="col-feed p-4 sm:p-5 space-y-4">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-zinc-300 font-semibold text-sm">Tasks & Reminders</h3>
+                    <span id="active-count" class="text-[11px] text-zinc-500 font-normal">0 Active</span>
+                </div>
+                <div id="reminders-list" class="space-y-2.5"></div>
+                <div id="empty-state" class="hidden text-center py-10 text-zinc-600 text-xs">
+                    <div class="text-2xl mb-2">✅</div>All clear — add a reminder to get started.
+                </div>
+            </div>
+
+            <div class="col-form border-l border-zinc-800 bg-black/10 p-4 sm:p-5 flex-shrink-0" id="desktop-form">
+                <h3 class="text-zinc-300 font-semibold text-sm mb-4">Add Reminder</h3>
+                <div id="desktop-form-fields" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reminder-toast" class="hidden">
+        <div class="glass border border-emerald-700 rounded-xl shadow-2xl overflow-hidden">
+            <div class="p-4 flex items-start gap-3">
+                <div class="text-xl flex-shrink-0">⏰</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] text-emerald-400 font-bold uppercase tracking-wider mb-0.5">Reminder</p>
+                    <p class="text-xs text-zinc-200 font-medium" id="toast-title">Task title</p>
+                    <p class="text-[11px] text-zinc-400 mt-0.5" id="toast-desc"></p>
+                    <p class="text-[10px] text-zinc-500 font-mono mt-1.5" id="toast-time"></p>
+                </div>
+                <button onclick="dismissToast()"
+                    class="text-zinc-500 hover:text-white text-sm flex-shrink-0 mt-0.5">&times;</button>
+            </div>
+            <div class="toast-progress" id="toast-progress"></div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+
+</html>
